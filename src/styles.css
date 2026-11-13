@@ -21,6 +21,8 @@
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body, #root { height: 100%; }
+/* La page elle-même ne défile jamais : seul le contenu de l'écran défile. */
+html, body { overflow: hidden; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
   font-family: var(--body); font-size: 15px; line-height: 1.4;
@@ -33,6 +35,7 @@ h1, h2, p { margin: 0; }
 .app { height: 100%; display: flex; flex-direction: column; max-width: 480px; margin: 0 auto; }
 .screen {
   flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 28px;
+  position: relative; overscroll-behavior: contain;
   padding: calc(env(safe-area-inset-top, 0px) + 28px) 24px 28px;
 }
 .screen.spread { justify-content: space-between; }
