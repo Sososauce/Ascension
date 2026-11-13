@@ -3,8 +3,12 @@ import { backupFileName, buildBackup, daysSince, parseBackup } from '../src/db/b
 
 describe('sauvegarde JSON', () => {
   it('fait un aller-retour sans perte', () => {
-    const data = { profile: { age: 30 }, meta: { schemaVersion: 1 } }
+    const data = { kv: { profile: { age: 30 }, progress: { xp: 40 } }, days: [{ date: '2026-11-13' }] }
     expect(parseBackup(JSON.stringify(buildBackup(data)))).toEqual(data)
+  })
+  it('relit une sauvegarde de la version 1 (profil seul)', () => {
+    const v1 = { app: 'ascension', schemaVersion: 1, exportedAt: '2026-11-13T10:00:00Z', data: { profile: { age: 30 }, meta: {} } }
+    expect(parseBackup(JSON.stringify(v1))).toEqual({ kv: { profile: { age: 30 }, meta: {} }, days: [] })
   })
   it('refuse un fichier qui n\'est pas du JSON', () => {
     expect(() => parseBackup('pas du json')).toThrow()
@@ -13,10 +17,10 @@ describe('sauvegarde JSON', () => {
     expect(() => parseBackup(JSON.stringify({ app: 'autre', data: {} }))).toThrow()
   })
   it('refuse une sauvegarde sans profil', () => {
-    expect(() => parseBackup(JSON.stringify(buildBackup({ meta: {} })))).toThrow()
+    expect(() => parseBackup(JSON.stringify(buildBackup({ kv: { meta: {} }, days: [] })))).toThrow()
   })
   it('refuse une sauvegarde d\'une version plus récente', () => {
-    const b = { ...buildBackup({ profile: {} }), schemaVersion: 999 }
+    const b = { ...buildBackup({ kv: { profile: {} }, days: [] }), schemaVersion: 999 }
     expect(() => parseBackup(JSON.stringify(b))).toThrow()
   })
   it('nomme le fichier avec la date', () => {

@@ -1,8 +1,9 @@
 import { openDB, type IDBPDatabase } from 'idb'
+import type { DayRecord, Progress } from '../domain/progress'
 import type { Profile } from '../domain/types'
 
 export const DB_NAME = 'ascension'
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 export interface Meta {
   schemaVersion: number
@@ -17,9 +18,9 @@ function db(): Promise<IDBPDatabase> {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, SCHEMA_VERSION, {
       upgrade(database) {
-        // Phase 1 : un magasin clé-valeur (profil, méta). Les phases suivantes
-        // ajouteront leurs magasins (jours, progression, plans repas) ici.
+        // v1 : magasin clé-valeur (profil, méta, progression). v2 : une fiche par jour de jeu.
         if (!database.objectStoreNames.contains('kv')) database.createObjectStore('kv')
+        if (!database.objectStoreNames.contains('days')) database.createObjectStore('days', { keyPath: 'date' })
       },
     })
   }
@@ -47,21 +48,46 @@ export async function saveMeta(meta: Meta): Promise<void> {
   await (await db()).put('kv', meta, 'meta')
 }
 
-/** Lit tout le magasin clé-valeur (pour la sauvegarde). */
-export async function readAll(): Promise<Record<string, unknown>> {
+export async function getProgress(): Promise<Progress | null> {
+  return ((await (await db()).get('kv', 'progress')) as Progress | undefined) ?? null
+}
+
+export async function saveProgress(progress: Progress): Promise<void> {
+  await (await db()).put('kv', progress, 'progress')
+}
+
+export async function getAllDays(): Promise<DayRecord[]> {
+  return (await (await db()).getAll('days')) as DayRecord[]
+}
+
+export async function putDays(records: DayRecord[]): Promise<void> {
+  if (records.length === 0) return
+  const tx = (await db()).transaction('days', 'readwrite')
+  for (const r of records) await tx.store.put(r)
+  await tx.done
+}
+
+export interface AllData {
+  kv: Record<string, unknown>
+  days: unknown[]
+}
+
+/** Lit toutes les données (pour la sauvegarde). */
+export async function readAll(): Promise<AllData> {
   const d = await db()
-  const keys = await d.getAllKeys('kv')
-  const out: Record<string, unknown> = {}
-  for (const k of keys) out[String(k)] = await d.get('kv', k)
-  return out
+  const kv: Record<string, unknown> = {}
+  for (const k of await d.getAllKeys('kv')) kv[String(k)] = await d.get('kv', k)
+  return { kv, days: await d.getAll('days') }
 }
 
 /** Remplace tout le contenu (restauration d'une sauvegarde). */
-export async function replaceAll(data: Record<string, unknown>): Promise<void> {
+export async function replaceAll(data: AllData): Promise<void> {
   const d = await db()
-  const tx = d.transaction('kv', 'readwrite')
-  await tx.store.clear()
-  for (const [k, v] of Object.entries(data)) await tx.store.put(v, k)
+  const tx = d.transaction(['kv', 'days'], 'readwrite')
+  await tx.objectStore('kv').clear()
+  await tx.objectStore('days').clear()
+  for (const [k, v] of Object.entries(data.kv)) await tx.objectStore('kv').put(v, k)
+  for (const day of data.days) await tx.objectStore('days').put(day)
   await tx.done
 }
 

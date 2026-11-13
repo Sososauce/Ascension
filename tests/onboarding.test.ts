@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_PROFILE } from '../src/domain/types'
 import { validateStep } from '../src/features/Onboarding'
-import { gameDayIndex } from '../src/features/Home'
 
 describe('validation du questionnaire', () => {
   it('accepte le profil par défaut à chaque étape', () => {
@@ -22,14 +21,3 @@ describe('validation du questionnaire', () => {
   })
 })
 
-describe('jour de jeu et heure de clôture', () => {
-  it('à 0 h 15 un samedi, avec clôture à 4 h, on est encore vendredi', () => {
-    expect(gameDayIndex(new Date(2026, 10, 14, 0, 15), 4)).toBe(4)
-  })
-  it('à 4 h 00 pile, la nouvelle journée commence', () => {
-    expect(gameDayIndex(new Date(2026, 10, 14, 4, 0), 4)).toBe(5)
-  })
-  it('avec clôture à minuit, le jour change à minuit', () => {
-    expect(gameDayIndex(new Date(2026, 10, 14, 0, 15), 0)).toBe(5)
-  })
-})

@@ -1,33 +1,36 @@
-import { SCHEMA_VERSION } from './db'
+import { SCHEMA_VERSION, type AllData } from './db'
 
 export interface BackupFile {
   app: 'ascension'
   schemaVersion: number
   exportedAt: string
-  data: Record<string, unknown>
+  data: AllData
 }
 
-export function buildBackup(data: Record<string, unknown>, now = new Date()): BackupFile {
+export function buildBackup(data: AllData, now = new Date()): BackupFile {
   return { app: 'ascension', schemaVersion: SCHEMA_VERSION, exportedAt: now.toISOString(), data }
 }
 
 /** Vérifie un fichier de sauvegarde et renvoie ses données, ou lève une erreur lisible. */
-export function parseBackup(text: string): Record<string, unknown> {
+export function parseBackup(text: string): AllData {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
   } catch {
     throw new Error("Ce fichier n'est pas une sauvegarde valide.")
   }
-  const b = parsed as Partial<BackupFile>
+  const b = parsed as { app?: unknown; schemaVersion?: unknown; data?: unknown }
   if (!b || b.app !== 'ascension' || typeof b.data !== 'object' || b.data === null) {
     throw new Error("Ce fichier n'est pas une sauvegarde de l'appli.")
   }
   if (typeof b.schemaVersion !== 'number' || b.schemaVersion > SCHEMA_VERSION) {
     throw new Error("Cette sauvegarde vient d'une version plus récente de l'appli.")
   }
-  if (!('profile' in b.data)) throw new Error('Cette sauvegarde ne contient pas de profil.')
-  return b.data
+  // Les sauvegardes de la version 1 ne contenaient que le magasin clé-valeur.
+  const raw = b.data as Record<string, unknown>
+  const data: AllData = b.schemaVersion === 1 ? { kv: raw, days: [] } : { kv: (raw.kv ?? {}) as Record<string, unknown>, days: Array.isArray(raw.days) ? raw.days : [] }
+  if (typeof data.kv !== 'object' || data.kv === null || !('profile' in data.kv)) throw new Error('Cette sauvegarde ne contient pas de profil.')
+  return data
 }
 
 export function backupFileName(now = new Date()): string {

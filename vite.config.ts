@@ -10,7 +10,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icons/apple-touch-icon.png'],
-      workbox: { globPatterns: ['**/*.{js,css,html,png,svg,woff2}'] },
+      workbox: { globPatterns: ['**/*.{js,css,html,png,jpg,svg,woff2}'] },
       manifest: {
         name: 'Ascension',
         short_name: 'Ascension',
